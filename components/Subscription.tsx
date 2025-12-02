@@ -77,7 +77,7 @@ export const Subscription: React.FC = () => {
       if (resultado.checkoutUrl) {
         window.location.href = resultado.checkoutUrl;
       } else {
-        alert("Falha ao gerar o link de pagamento.");
+        alert("Falha ao gerar o link de pagamento. ");
       }
     } catch (erro) {
       console.error("Erro ao conectar com o Back-End:", erro);
