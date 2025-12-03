@@ -1,42 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getCurrentUser } from "../services/authService";
+import { getUserData } from "../services/authService";
 
-// --- Simulação de uma chamada para a Cloud Function ---
-// Em um projeto real, isso seria uma chamada real usando o SDK do Firebase.
-const callCreateSubscriptionFunction = async (planType: "MENSAL") => {
-  const userEmail = localStorage.getItem("4us_user_email") || "teste@4us.ai";
-  const uid = "mock-uid-" + Date.now(); // UID simulado
+interface SubscriptionProps {
+  onSubscriptionSuccess?: () => void;
+}
 
-  console.log(
-    `[FRONTEND] Simulando chamada para a Cloud Function 'createMercadoPagoSubscription'`
-  );
-  console.log(`[FRONTEND] Enviando dados:`, {
-    email: userEmail,
-    uid,
-    planType,
-  });
-
-  // Simula a espera da resposta do backend
-  await new Promise((resolve) => setTimeout(resolve, 2500));
-
-  // Simula a resposta que a sua Cloud Function retornaria
-  const mockResponse = {
-    init_point: `https://www.mercadopago.com.br/subscriptions/checkout?preapproval_id=mock-preapproval-id-for-${planType.toLowerCase()}`,
-    id: `mock-id-${Date.now()}`,
-  };
-
-  console.log(
-    `[FRONTEND] Resposta simulada recebida do backend:`,
-    mockResponse
-  );
-  return mockResponse;
-};
-
-export const Subscription: React.FC = () => {
+export const Subscription: React.FC<SubscriptionProps> = ({ onSubscriptionSuccess }) => {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("card");
   const [processing, setProcessing] = useState(false);
-  const [success, setSuccess] = useState(false); // Mantido para UI pós-redirect
+  const [success, setSuccess] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    // Obter dados do usuário atual
+    const user = getCurrentUser();
+    if (user) {
+      setUserEmail(user.email || "");
+      getUserData(user.uid).then((data) => {
+        if (data) {
+          setUserName(data.fullName);
+        }
+      });
+    }
+  }, []);
 
   const handleSelectPlan = (plan: "monthly") => {
     setSelectedPlan(plan);
@@ -47,12 +37,16 @@ export const Subscription: React.FC = () => {
   const handlePay = async () => {
     setProcessing(true);
 
-    const userEmail = localStorage.getItem("4us_user_email") || "teste@4us.ai";
-    const uid = "mock-uid-" + Date.now();
+    const user = getCurrentUser();
+    if (!user) {
+      alert("Erro: Usuário não autenticado. Faça login novamente.");
+      setProcessing(false);
+      return;
+    }
 
     const dadosDoPlano = {
-      userId: uid,
-      userEmail: userEmail,
+      userId: user.uid,
+      userEmail: user.email || "",
       planType: "MENSAL",
     };
 
@@ -75,13 +69,16 @@ export const Subscription: React.FC = () => {
       const resultado = await resposta.json();
 
       if (resultado.checkoutUrl) {
+        // Redirecionar para o checkout do Mercado Pago
         window.location.href = resultado.checkoutUrl;
       } else {
-        alert("Falha ao gerar o link de pagamento. ");
+        alert("Falha ao gerar o link de pagamento.");
+        setProcessing(false);
       }
     } catch (erro) {
       console.error("Erro ao conectar com o Back-End:", erro);
       alert(`Erro ao iniciar assinatura: ${(erro as Error).message}`);
+      setProcessing(false);
     }
   };
 

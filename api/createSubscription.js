@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, Preference } from "mercadopago";
+import { MercadoPagoConfig, PreApproval } from "mercadopago";
 
 export default async function handler(req, res) {
   console.log("---- CHEGOU NA API VITE/Vercel -----");
@@ -37,38 +37,38 @@ export default async function handler(req, res) {
       accessToken: ACCESS_TOKEN,
     });
 
-    const preference = new Preference(client);
+    const preApproval = new PreApproval(client);
 
-    let planDetails = { title: "Plano Mensal", unit_price: 279 };
-
-    const resposta = await preference.create({
+    // Criar assinatura recorrente mensal
+    const resposta = await preApproval.create({
       body: {
-        items: [
-          {
-            title: planDetails.title,
-            unit_price: planDetails.unit_price,
-            quantity: 1,
-          },
-        ],
-        payer: { email: userEmail },
-        external_reference: userId,
-        back_urls: {
-          success: "https://engenharia-de-cortes-5d.vercel.app/",
-          failure: "https://engenharia-de-cortes-5d.vercel.app/",
-          pending: "https://engenharia-de-cortes-5d.vercel.app/",
+        reason: "Plano Mensal PRO - 4us! Smart Studio AI",
+        auto_recurring: {
+          frequency: 1,
+          frequency_type: "months",
+          transaction_amount: 279,
+          currency_id: "BRL",
+          start_date: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), // Inicia após 48h (fim do trial)
         },
-        auto_return: "approved",
-        metadata: { planType },
+        payer_email: userEmail,
+        external_reference: userId,
+        back_url: `${process.env.APP_URL || "https://engenharia-de-cortes-5d.vercel.app"}/`,
+        status: "pending",
+        metadata: {
+          userId: userId,
+          planType: planType,
+        },
       },
     });
 
-    console.log("Preference criada:", resposta.init_point);
+    console.log("PreApproval criada:", resposta.init_point);
 
     return res.status(200).json({
       checkoutUrl: resposta.init_point,
+      preapprovalId: resposta.id,
     });
   } catch (err) {
     console.log("🔥 Erro Mercado Pago:", err);
-    return res.status(500).json({ error: "Falha ao criar preferência." });
+    return res.status(500).json({ error: "Falha ao criar assinatura: " + (err.message || "Erro desconhecido") });
   }
 }
