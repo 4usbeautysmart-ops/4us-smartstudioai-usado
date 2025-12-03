@@ -3,13 +3,16 @@ import { getCurrentUser } from "../services/authService";
 import { getUserData } from "../services/authService";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../services/firebaseConfig";
+import { AppView } from "../types";
 
 interface SubscriptionProps {
   onSubscriptionSuccess?: () => void;
+  onNavigate?: (view: AppView) => void;
 }
 
 export const Subscription: React.FC<SubscriptionProps> = ({
   onSubscriptionSuccess,
+  onNavigate,
 }) => {
   const [processing, setProcessing] = useState(false);
   const [userEmail, setUserEmail] = useState("");
@@ -36,7 +39,7 @@ export const Subscription: React.FC<SubscriptionProps> = ({
     if (!user) return;
 
     const userRef = doc(db, "users", user.uid);
-    const unsubscribe = onSnapshot(userRef, (snapshot) => {
+    const unsubscribe = onSnapshot(userRef, async (snapshot) => {
       if (!snapshot.exists()) return;
       const data = snapshot.data() as any;
 
@@ -45,27 +48,28 @@ export const Subscription: React.FC<SubscriptionProps> = ({
         typeof data?.accessUntil === "number" && data.accessUntil > Date.now();
 
       if (isActive || hasAccessUntil) {
-        // Chama callback se fornecido (App passa um que re-checa acesso)
+        // Chama callback se fornecido (p.ex. re-checar estado)
         if (onSubscriptionSuccess) {
-          onSubscriptionSuccess();
+          try {
+            await onSubscriptionSuccess();
+          } catch (e) {
+            // ignore
+          }
         }
 
-        // Emitir evento global simples para que o App reaja.
-        // Não fazemos pushState/popstate nem reload: App fará a navegação internamente.
-        try {
-          window.dispatchEvent(
-            new CustomEvent("subscription_success", {
-              detail: { userId: user.uid },
-            })
-          );
-        } catch (e) {
-          // ignorar
+        // Navegar para dashboard via callback SPA se fornecido
+        if (onNavigate) {
+          try {
+            onNavigate(AppView.DASHBOARD);
+          } catch (e) {
+            // ignore
+          }
         }
       }
     });
 
     return () => unsubscribe();
-  }, [onSubscriptionSuccess]);
+  }, [onSubscriptionSuccess, onNavigate]);
 
   const handlePay = async () => {
     setProcessing(true);

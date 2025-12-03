@@ -41,22 +41,7 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // Reagir a evento global quando a assinatura for confirmada (Subscription component ou webhook)
-  useEffect(() => {
-    const handler = async (ev: Event) => {
-      const user = getCurrentUser();
-      if (user) {
-        await checkUserAccess(user.uid);
-      }
-    };
-
-    window.addEventListener("subscription_success", handler as EventListener);
-    return () =>
-      window.removeEventListener(
-        "subscription_success",
-        handler as EventListener
-      );
-  }, []);
+  // NOTE: removed global subscription_success listener; Subscription will call onNavigate directly.
 
   const checkUserAccess = async (uid: string) => {
     setIsCheckingAccess(true);
@@ -145,7 +130,17 @@ const App: React.FC = () => {
       case AppView.CHATBOT:
         return <Chatbot />;
       case AppView.SUBSCRIPTION:
-        return <Subscription />;
+        return (
+          <Subscription
+            onSubscriptionSuccess={async () => {
+              const user = getCurrentUser();
+              if (user) {
+                await checkUserAccess(user.uid);
+              }
+            }}
+            onNavigate={setCurrentView}
+          />
+        );
       case AppView.LIBRARY:
         return <Library />;
       default:
@@ -178,6 +173,7 @@ const App: React.FC = () => {
             await checkUserAccess(user.uid);
           }
         }}
+        onNavigate={setCurrentView}
       />
     );
   }
