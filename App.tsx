@@ -11,7 +11,7 @@ import { Subscription } from './components/Subscription';
 import { Library } from './components/Library';
 import { Login } from './components/Login';
 import { AppView } from './types';
-import { onAuthStateChange, getCurrentUser } from './services/authService';
+import { onAuthStateChange, getCurrentUser, getUserData } from './services/authService';
 import { validateAccess } from './services/subscriptionService';
 
 const App: React.FC = () => {
@@ -35,6 +35,19 @@ const App: React.FC = () => {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Reagir a evento global quando a assinatura for confirmada (Subscription component ou webhook)
+  useEffect(() => {
+    const handler = async (ev: Event) => {
+      const user = getCurrentUser();
+      if (user) {
+        await checkUserAccess(user.uid);
+      }
+    };
+
+    window.addEventListener('subscription_success', handler as EventListener);
+    return () => window.removeEventListener('subscription_success', handler as EventListener);
   }, []);
 
   const checkUserAccess = async (uid: string) => {
@@ -67,6 +80,22 @@ const App: React.FC = () => {
     const user = getCurrentUser();
     if (user) {
       await checkUserAccess(user.uid);
+      // Garantir que `trial_start_date` exista localmente para a UI
+      try {
+        const existing = localStorage.getItem('trial_start_date');
+        if (!existing) {
+          const userData = await getUserData(user.uid);
+          if (userData && userData.trialEndsAt) {
+            // Assumir trial de 48 horas: calcular início a partir de trialEndsAt
+            const trialStartMs = userData.trialEndsAt - (48 * 60 * 60 * 1000);
+            localStorage.setItem('trial_start_date', new Date(trialStartMs).toISOString());
+          } else {
+            localStorage.setItem('trial_start_date', new Date().toISOString());
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao garantir trial_start_date local:', e);
+      }
     }
   };
 

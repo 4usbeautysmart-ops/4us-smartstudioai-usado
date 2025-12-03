@@ -44,11 +44,23 @@ export const Subscription: React.FC<SubscriptionProps> = ({ onSubscriptionSucces
       const hasAccessUntil = typeof data?.accessUntil === "number" && data.accessUntil > Date.now();
 
       if (isActive || hasAccessUntil) {
-        // Chama callback se fornecido, senão redireciona para home
+        // Chama callback se fornecido
         if (onSubscriptionSuccess) {
           onSubscriptionSuccess();
-        } else {
-          window.location.href = "/";
+        }
+
+        // Também emitir evento global para que o App (ou outro) possa reagir
+        try {
+          window.dispatchEvent(new CustomEvent('subscription_success', { detail: { userId: user.uid } }));
+          // Atualizar URL sem recarregar — útil se o projeto usar roteamento externo
+          try {
+            window.history.pushState({}, '', '/');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          } catch (e) {
+            // Ignorar se pushState falhar
+          }
+        } catch (e) {
+          // ignore
         }
       }
     });
