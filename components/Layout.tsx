@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { AppView, NavItem } from "../types";
+import { logout } from "../services/authService";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -240,9 +241,17 @@ export const Layout: React.FC<LayoutProps> = ({
     return "bg-green-500";
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("4us_user_session");
-    window.location.reload();
+  const handleLogout = async () => {
+    try {
+      // Limpar itens locais e deslogar via authService
+      localStorage.removeItem("4us_user_session");
+      localStorage.removeItem("trial_start_date");
+      await logout();
+    } catch (e) {
+      console.warn("Erro ao efetuar logout:", e);
+      // Como fallback, recarregar a página
+      window.location.reload();
+    }
   };
 
   return (

@@ -8,12 +8,12 @@ interface SubscriptionProps {
   onSubscriptionSuccess?: () => void;
 }
 
-export const Subscription: React.FC<SubscriptionProps> = ({ onSubscriptionSuccess }) => {
+export const Subscription: React.FC<SubscriptionProps> = ({
+  onSubscriptionSuccess,
+}) => {
   const [processing, setProcessing] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
-
-  
 
   useEffect(() => {
     // Obter dados do usuário atual
@@ -41,26 +41,25 @@ export const Subscription: React.FC<SubscriptionProps> = ({ onSubscriptionSucces
       const data = snapshot.data() as any;
 
       const isActive = data?.subscriptionStatus === "active";
-      const hasAccessUntil = typeof data?.accessUntil === "number" && data.accessUntil > Date.now();
+      const hasAccessUntil =
+        typeof data?.accessUntil === "number" && data.accessUntil > Date.now();
 
       if (isActive || hasAccessUntil) {
-        // Chama callback se fornecido
+        // Chama callback se fornecido (App passa um que re-checa acesso)
         if (onSubscriptionSuccess) {
           onSubscriptionSuccess();
         }
 
-        // Também emitir evento global para que o App (ou outro) possa reagir
+        // Emitir evento global simples para que o App reaja.
+        // Não fazemos pushState/popstate nem reload: App fará a navegação internamente.
         try {
-          window.dispatchEvent(new CustomEvent('subscription_success', { detail: { userId: user.uid } }));
-          // Atualizar URL sem recarregar — útil se o projeto usar roteamento externo
-          try {
-            window.history.pushState({}, '', '/');
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          } catch (e) {
-            // Ignorar se pushState falhar
-          }
+          window.dispatchEvent(
+            new CustomEvent("subscription_success", {
+              detail: { userId: user.uid },
+            })
+          );
         } catch (e) {
-          // ignore
+          // ignorar
         }
       }
     });
@@ -116,7 +115,6 @@ export const Subscription: React.FC<SubscriptionProps> = ({ onSubscriptionSucces
     }
   };
 
-
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-10">
       <div className="text-center space-y-4">
@@ -127,7 +125,8 @@ export const Subscription: React.FC<SubscriptionProps> = ({ onSubscriptionSucces
           Continue Usando o 4us!
         </h2>
         <p className="text-xl text-gray-400">
-          Seu período de acesso expirou. Renove agora para continuar aproveitando todas as ferramentas AI.
+          Seu período de acesso expirou. Renove agora para continuar
+          aproveitando todas as ferramentas AI.
         </p>
       </div>
 
