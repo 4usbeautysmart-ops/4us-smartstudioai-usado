@@ -16,32 +16,28 @@ export const useAccessControl = () => {
 
     return () => clearInterval(interval);
   }, []);
-  const checkAccess = async (): Promise<AccessStatus> => {
+
+  const checkAccess = async () => {
     setIsChecking(true);
     try {
       const user = getCurrentUser();
       if (user) {
         const status = await validateAccess(user.uid);
         setAccessStatus(status);
-        return status;
       } else {
-        const expired: AccessStatus = {
+        setAccessStatus({
           hasAccess: false,
           subscriptionStatus: 'expired',
           expiresAt: 0,
-        };
-        setAccessStatus(expired);
-        return expired;
+        });
       }
     } catch (error) {
       console.error('Erro ao verificar acesso:', error);
-      const expired: AccessStatus = {
+      setAccessStatus({
         hasAccess: false,
         subscriptionStatus: 'expired',
         expiresAt: 0,
-      };
-      setAccessStatus(expired);
-      return expired;
+      });
     } finally {
       setIsChecking(false);
     }
@@ -50,11 +46,12 @@ export const useAccessControl = () => {
   // Função para verificar acesso antes de executar uma ação
   const requireAccess = (callback: () => void | Promise<void>) => {
     return async () => {
-      const status = await checkAccess();
-
-      if (status?.hasAccess) {
+      await checkAccess();
+      
+      if (accessStatus?.hasAccess) {
         await callback();
       } else {
+        // Redirecionar para tela de pagamento será feito pelo App.tsx
         alert('Seu acesso expirou. Por favor, renove sua assinatura para continuar usando o app.');
       }
     };

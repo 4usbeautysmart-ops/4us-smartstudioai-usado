@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { AppView, NavItem } from "../types";
-import { logout } from "../services/authService";
+import { logout, getCurrentUser, getUserData } from "../services/authService";
+import { validateAccess } from "../services/subscriptionService";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -172,59 +173,74 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [trialHoursLeft, setTrialHoursLeft] = useState<number | null>(null);
+  const [isTrial, setIsTrial] = useState(false);
 
-  // Check trial status on mount and when event fires
+  // Check trial status from Firebase
   useEffect(() => {
-    const checkTrialStatus = () => {
-      const startDateStr = localStorage.getItem("trial_start_date");
-      if (startDateStr) {
-        let startDate: Date | null = null;
+    const checkTrialStatus = async () => {
+      const user = getCurrentUser();
+      if (!user) {
+        setTrialDaysLeft(null);
+        setTrialHoursLeft(null);
+        setIsTrial(false);
+        return;
+      }
 
-        // Suportar ISO, millisecond timestamp e second timestamp
-        if (/^\d+$/.test(startDateStr)) {
-          // numérico
-          const num = parseInt(startDateStr, 10);
-          // se tiver 10 dígitos, é seconds, converter pra ms
-          startDate = new Date(num.toString().length === 10 ? num * 1000 : num);
-        } else {
-          const parsed = Date.parse(startDateStr);
-          startDate = isNaN(parsed) ? null : new Date(parsed);
-        }
-
-        if (!startDate) {
+      try {
+        const userData = await getUserData(user.uid);
+        if (!userData) {
           setTrialDaysLeft(null);
           setTrialHoursLeft(null);
+          setIsTrial(false);
           return;
         }
 
-        const now = new Date();
-        const trialLengthHours = 48;
-        const msPerHour = 1000 * 60 * 60;
+        // Verificar se está em trial
+        if (userData.subscriptionStatus === "trial") {
+          setIsTrial(true);
+          const now = Date.now();
+          const trialEndsAt = userData.trialEndsAt || 0;
 
-        const diffTime = now.getTime() - startDate.getTime();
-        const diffHours = Math.floor(diffTime / msPerHour);
+          if (trialEndsAt > 0 && trialEndsAt > now) {
+            // Calcular tempo restante
+            const timeRemaining = trialEndsAt - now;
+            const hoursRemaining = Math.floor(timeRemaining / (60 * 60 * 1000));
+            const daysRemaining = Math.ceil(hoursRemaining / 24);
 
-        let remainingHours = trialLengthHours - diffHours;
-        if (remainingHours < 0) remainingHours = 0;
-        if (remainingHours > trialLengthHours)
-          remainingHours = trialLengthHours;
-
-        const remainingDays = Math.ceil(remainingHours / 24);
-
-        setTrialHoursLeft(remainingHours);
-        setTrialDaysLeft(remainingDays > 0 ? remainingDays : 0);
-      } else {
+            setTrialHoursLeft(hoursRemaining);
+            setTrialDaysLeft(daysRemaining > 0 ? daysRemaining : 0);
+          } else {
+            // Trial expirado
+            setTrialHoursLeft(0);
+            setTrialDaysLeft(0);
+            setIsTrial(false);
+          }
+        } else {
+          // Não está em trial
+          setIsTrial(false);
+          setTrialDaysLeft(null);
+          setTrialHoursLeft(null);
+        }
+      } catch (error) {
+        console.error("Erro ao verificar status do trial:", error);
         setTrialDaysLeft(null);
         setTrialHoursLeft(null);
+        setIsTrial(false);
       }
     };
 
     checkTrialStatus();
 
+    // Verificar periodicamente (a cada minuto)
+    const interval = setInterval(checkTrialStatus, 60000);
+
     // Listen for custom event from Subscription component
     window.addEventListener("subscription_updated", checkTrialStatus);
-    return () =>
+    
+    return () => {
+      clearInterval(interval);
       window.removeEventListener("subscription_updated", checkTrialStatus);
+    };
   }, []);
 
   const getTrialColor = () => {
@@ -309,32 +325,34 @@ export const Layout: React.FC<LayoutProps> = ({
 
         <div className="p-4 border-t border-studio-accent space-y-4">
           {/* Conditional Subscription Widget */}
-          {trialHoursLeft !== null ? (
+          {isTrial && trialHoursLeft !== null ? (
             <div
               className={`w-full bg-studio-bg/50 border rounded-xl p-3 shadow-lg ${getTrialColor()}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold uppercase tracking-wider">
-                  Teste PRO
+                  Teste Grátis
                 </span>
                 <span className="text-xs font-bold">
                   {trialHoursLeft < 24
-                    ? `${trialHoursLeft} Horas`
-                    : `${trialDaysLeft} Dias`}
+                    ? `${trialHoursLeft}h restantes`
+                    : `${trialDaysLeft} dias restantes`}
                 </span>
               </div>
               {/* Progress Bar */}
-              <div className="w-full bg-gray-700 h-2 rounded-full overflow-hidden">
+              <div className="w-full bg-gray-700 h-2 rounded-full overflow-hidden mb-2">
                 <div
                   className={`h-full transition-all duration-500 ${getTrialBg()}`}
-                  style={{ width: `${(trialHoursLeft / 48) * 100}%` }}
+                  style={{ 
+                    width: `${Math.max(0, Math.min(100, (trialHoursLeft / 48) * 100))}%` 
+                  }}
                 ></div>
               </div>
               <button
                 onClick={() => onNavigate(AppView.SUBSCRIPTION)}
-                className="text-[10px] text-gray-400 mt-2 hover:text-white underline w-full text-center"
+                className="text-[10px] text-gray-400 hover:text-white underline w-full text-center transition-colors"
               >
-                Gerenciar Assinatura
+                Assinar PRO Agora
               </button>
             </div>
           ) : (

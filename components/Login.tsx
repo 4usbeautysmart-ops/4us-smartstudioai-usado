@@ -36,12 +36,6 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 }
 
                 await createAccount(email, password, name);
-                // Salvar início do trial localmente (48 horas)
-                try {
-                    localStorage.setItem('trial_start_date', new Date().toISOString());
-                } catch (e) {
-                    console.warn('Não foi possível salvar trial_start_date no localStorage', e);
-                }
                 onLoginSuccess();
             } else {
                 // Fazer login
