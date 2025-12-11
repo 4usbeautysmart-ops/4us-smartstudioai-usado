@@ -173,25 +173,25 @@ const App: React.FC = () => {
   }, []);
 
   // Verificar acesso periodicamente (a cada 10 segundos quando tem acesso)
-  useEffect(() => {
-    if (!isAuthenticated || !hasAccess) return;
+  // useEffect(() => {
+  //   if (!isAuthenticated || !hasAccess) return;
 
-    const interval = setInterval(async () => {
-      const user = getCurrentUser();
-      if (user) {
-        console.log("🔄 Verificando acesso periodicamente...");
-        const accessStatus = await validateAccess(user.uid);
-        console.log("📊 Status de acesso:", accessStatus);
-        if (!accessStatus.hasAccess) {
-          console.log("❌ Acesso expirado! Redirecionando para pagamento...");
-          setHasAccess(false);
-          setCurrentView(AppView.SUBSCRIPTION);
-        }
-      }
-    }, 10000); // 10 segundos (mais frequente para detectar expiração rapidamente)
+  //   const interval = setInterval(async () => {
+  //     const user = getCurrentUser();
+  //     if (user) {
+  //       console.log("🔄 Verificando acesso periodicamente...");
+  //       const accessStatus = await validateAccess(user.uid);
+  //       console.log("📊 Status de acesso:", accessStatus);
+  //       if (!accessStatus.hasAccess) {
+  //         console.log("❌ Acesso expirado! Redirecionando para pagamento...");
+  //         setHasAccess(false);
+  //         setCurrentView(AppView.SUBSCRIPTION);
+  //       }
+  //     }
+  //   }, 10000);
 
-    return () => clearInterval(interval);
-  }, [isAuthenticated, hasAccess]);
+  //   return () => clearInterval(interval);
+  // }, [isAuthenticated, hasAccess]);
 
   // Verificar acesso mais frequentemente quando não tem acesso (na tela de pagamento)
   useEffect(() => {
