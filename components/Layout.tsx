@@ -174,6 +174,9 @@ export const Layout: React.FC<LayoutProps> = ({
   const [trialDaysLeft, setTrialDaysLeft] = useState<number | null>(null);
   const [trialHoursLeft, setTrialHoursLeft] = useState<number | null>(null);
   const [isTrial, setIsTrial] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const ADMIN_EMAIL = "admin@jailson.com";
 
   // Check trial status from Firebase
   useEffect(() => {
@@ -183,8 +186,19 @@ export const Layout: React.FC<LayoutProps> = ({
         setTrialDaysLeft(null);
         setTrialHoursLeft(null);
         setIsTrial(false);
+        setIsAdmin(false);
         return;
       }
+
+      // Admin: não mostrar barra de trial nem botão Assinar PRO
+      if (user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+        setIsAdmin(true);
+        setIsTrial(false);
+        setTrialDaysLeft(null);
+        setTrialHoursLeft(null);
+        return;
+      }
+      setIsAdmin(false);
 
       try {
         const userData = await getUserData(user.uid);
@@ -324,8 +338,14 @@ export const Layout: React.FC<LayoutProps> = ({
         </nav>
 
         <div className="p-4 border-t border-studio-accent space-y-4">
-          {/* Conditional Subscription Widget */}
-          {isTrial && trialHoursLeft !== null ? (
+          {/* Admin: não mostra bloco de assinatura */}
+          {isAdmin ? (
+            <div className="w-full bg-studio-bg/50 border border-neon-cyan/30 rounded-xl p-3 text-center">
+              <span className="text-xs font-bold uppercase tracking-wider text-neon-cyan">
+                Admin
+              </span>
+            </div>
+          ) : isTrial && trialHoursLeft !== null ? (
             <div
               className={`w-full bg-studio-bg/50 border rounded-xl p-3 shadow-lg ${getTrialColor()}`}
             >

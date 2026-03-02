@@ -25,6 +25,19 @@ export const validateAccess = async (uid: string): Promise<AccessStatus> => {
     }
 
     const userData = userDoc.data() as UserData;
+
+    // Admin: sempre tem acesso, sem verificar trial/assinatura
+    const adminEmail = "admin@jailson.com";
+    if (userData.email && userData.email.toLowerCase() === adminEmail.toLowerCase()) {
+      return {
+        hasAccess: true,
+        subscriptionStatus: "active",
+        expiresAt: Number.MAX_SAFE_INTEGER,
+        daysRemaining: 999,
+        hoursRemaining: 999,
+      };
+    }
+
     const now = Date.now();
 
     // Determinar qual campo verificar baseado no status
